@@ -75,6 +75,15 @@ sub walk {
     $_->walk($code) for $self->extra_walkables;
 }
 
+sub walktail {
+    my ($self, $code) = @_;
+    if ($self->children) {
+        $_->walk($code) for @{$self->children};
+    }
+    $_->walk($code) for $self->extra_walkables;
+    $code->($self);
+}
+
 sub find {
     my ($self, $criteria) = @_;
     return unless $self->children;
@@ -116,6 +125,47 @@ sub headline {
             1;
         });
     $h;
+}
+
+sub headpath {
+    my ($self) = @_;
+    my @path;
+    $self->walk_parents(
+        sub {
+            my ($el, $p) = @_;
+            if ($p->isa('Org::Element::Headline')) {
+                unshift @path, $p;
+            }
+            1;
+        });
+    # include the given headline, if it is a headline
+    push @path, $self if $self->isa("Org::Element::Headline");
+    return @path;
+}
+
+sub findpath {
+    my ($self, @path) = @_;
+    # if given a array ref, turn it into an array
+    @path = @{$path[0]} if $#path == 0 and ref $path[0] eq "ARRAY";
+
+    my $searchroot = $self;
+    foreach my $i (@path)
+    {
+        # no children!
+        return undef unless ref $searchroot->children eq "ARRAY";
+
+        # locate the child at this point in the path
+        ($searchroot) = grep(
+            (ref $i ?
+             $i eq $_ :
+             $i eq $_->title->as_string),
+            @{$searchroot->children});
+        next if $searchroot;
+
+        # this is not the node you're looking for
+        return undef;
+    }
+    return $searchroot;
 }
 
 sub field_name {
@@ -223,6 +273,25 @@ document), or until CODEREF returns a false value. CODEREF will be supplied
 =head2 $el->headline() => ELEMENT
 
 Get current headline.
+
+=head2 $el->headpath() => ARRAY of ELEMENT
+
+Get the path of Org::Element::Headline objects to this element.
+For example, given this org file:
+ * foo
+ ** bar
+ *** baz
+ text
+
+Running headpath() on "text" or on the "baz" headline will return the elements "foo", "bar" and "baz" in that order.
+
+=head2 $el->findpath(ARRAY) => ELEMENT
+
+Return the headline at the given path.  Given the example org file shown
+for headpath() (q.v.), findpath(qw(foo bar baz)) would return the element
+object for "baz".
+
+If there is no such path undef will be returned.
 
 =head2 $el->field_name() => STR
 

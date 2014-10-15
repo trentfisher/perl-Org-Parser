@@ -32,6 +32,9 @@ sub _buildtree {
     my $title;
     if ($el->isa('Org::Element::Headline')) {
         $title = $el->title->as_string;
+        # apparently headlines can have trailing white space
+        $title =~ s/\s*$//;
+        $title =~ s/^\s*//;
     }
     elsif ($el->isa('Org::Document')) {
         $title = "tree"
@@ -51,7 +54,8 @@ sub _buildtree {
 sub headwalk {
     my ($self, $code, $r) = @_;
     if ($r) {
-        $code->($r->{title}, $r->{elems});
+        $code->($r->{title}, $r->{elems},
+                $r->{elems}->{(keys %{$r->{elems}})[0]}->level);
     } else {
         $r = $self->{tree};
     }
