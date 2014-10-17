@@ -40,8 +40,16 @@ sub _buildtree {
         $title = "tree"
     }
     else { return }
+
+    if ($ret->{$title}{elems}{$name})
+    {
+        warn "Error: duplicate definition of $title in $name, skipping\n";
+        return;
+    }
+
     $ret->{$title}{title} = $title;
     $ret->{$title}{elems}{$name} = $el;
+    $ret->{$title}{seniority} += $el->seniority;
 
     foreach my $c ($el->children ? @{$el->children} : ()) {
         next unless $c->isa('Org::Element::Headline');
@@ -59,11 +67,34 @@ sub headwalk {
     } else {
         $r = $self->{tree};
     }
-    foreach my $c (sort keys %{$r->{child}}) {
+    foreach my $c (sort {$r->{child}{$a}{seniority} <=>
+                         $r->{child}{$b}{seniority} }
+                   keys %{$r->{child}}) {
         $self->headwalk($code, $r->{child}{$c});
     }
 }
 
+sub check {
+    my $self = shift;
+
+    $self->headwalk(sub {
+        my ($title, $el, $d) = @_;
+        foreach my $name (sort keys %{$el})
+        {
+            next unless ref $el->{$name};
+            if (ref($el->{$name}) !~ /Org::/)
+            {
+                warn "something wrong at $name $title\n";
+                next;
+            }
+            my @p = $el->{$name}->headpath();
+            my $oel = $self->{doc}{$name}->findpath(@p) || "";
+            #print "checking $name $title $el->{$name} vs $oel\n";
+            warn("different elements for $name at @p\n")
+                if $el->{$name} ne $oel;
+        }
+    });
+}
 
 =head1 SEE ALSO
 
