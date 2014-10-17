@@ -152,6 +152,11 @@ sub BUILD {
                 push @$ary, $arg unless $arg ~~ @$ary;
             }
         }
+    # allow a timezone to be specified in the org file... not official org-mode setting
+    } elsif ($name eq 'TZ') {
+        if ($pass == 1) {
+            $doc->time_zone(join(" ", @$args));
+        }
     } else {
         die "Unknown setting $name" unless $name ~~ @known_settings;
     }
